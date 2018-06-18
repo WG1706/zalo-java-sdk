@@ -40,6 +40,9 @@ public class ZaloOaClient extends ZaloBaseClient {
     private ZaloAppInfo appInfo;
     public boolean isDebug = false;
 
+    public ZaloOaClient() {
+    }
+
     public ZaloOaClient(ZaloOaInfo info) {
         this.oaInfo = info;
     }
@@ -1096,7 +1099,7 @@ public class ZaloOaClient extends ZaloBaseClient {
 
     private static final List<String> IGNORE_FIELDS = Arrays.asList("oaid", "timestamp");
 
-    public JsonObject excuteRequest(String endPoint, String method, Map<String, Object> params) throws APIException {
+    public JsonObject excuteRequest(String endPoint, String method, Map<String, Object> params, Object body) throws APIException {
         File file = null;
         Map<String, String> sortedMap = new TreeMap<>();
         if (params == null) {
@@ -1111,6 +1114,9 @@ public class ZaloOaClient extends ZaloBaseClient {
                 sortedMap.put(key, value.toString());
             }
         }
+        if (body instanceof File) {
+            file = (File) body;
+        }
         List<String> sequence = new ArrayList<>();
         sequence.add((Long) params.getOrDefault("oaid", 0l) + "");
         for (Map.Entry<String, String> entrySet : sortedMap.entrySet()) {
@@ -1121,26 +1127,47 @@ public class ZaloOaClient extends ZaloBaseClient {
             }
         }
         sequence.add((Long) params.getOrDefault("timestamp", 0l) + "");
-        sequence.add(oaInfo.getSecrect());
-        String mac = MacUtils.buildMac(sequence.toArray());
-        sortedMap.put("mac", mac);
+        if (oaInfo != null) {
+            sequence.add(oaInfo.getSecrect());
+            String mac = MacUtils.buildMac(sequence.toArray());
+            sortedMap.put("mac", mac);
+        }
         String response = null;
-        if (file != null) {
-            response = sendHttpUploadRequest(endPoint, file, sortedMap, APIConfig.DEFAULT_HEADER);
-        } else {
-            if (isDebug) {
-                StringBuilder query  = new StringBuilder();
-                for (Map.Entry<String, String> entrySet : sortedMap.entrySet()) {
-                    String key = entrySet.getKey();
-                    String value = entrySet.getValue();
-                    query.append(key).append("=").append(value).append("&");
-                }
-                System.out.println("DEBUG: METHOD:" + method + " | QUERY: " + endPoint + "?" + query.toString());
+        if (isDebug) {
+            StringBuilder query = new StringBuilder();
+            for (Map.Entry<String, String> entrySet : sortedMap.entrySet()) {
+                String key = entrySet.getKey();
+                String value = entrySet.getValue();
+                query.append(key).append("=").append(value).append("&");
             }
             if ("GET".equals(method.toUpperCase())) {
-                response = sendHttpGetRequest(endPoint, sortedMap, APIConfig.DEFAULT_HEADER);
+                System.out.println("curl \\\n"
+                        + " -X " + method + " \\\n"
+                        + " -H \"Content-Type: application/json\" \\\n"
+                        + "\"" + endPoint + "?" + query.toString() + "\"");
             } else {
-                response = sendHttpPostRequest(endPoint, sortedMap, APIConfig.DEFAULT_HEADER);
+                if (file != null) {
+                    System.out.println("curl \\\n"
+                            + " -X " + method + " \\\n"
+                            + " -F 'file=@" + file.getPath() + "'"
+                            + " -H \"Content-Type: multipart/form-data\" \\\n"
+                            + "\"" + endPoint + "?" + query.toString() + "\"");
+                } else {
+                    System.out.println("curl \\\n"
+                            + " -X " + method + " \\\n"
+                            + " -d '" + body + "'"
+                            + " -H \"Content-Type: application/json\" \\\n"
+                            + "\"" + endPoint + "?" + query.toString() + "\"");
+                }
+            }
+        }
+        if ("GET".equals(method.toUpperCase())) {
+            response = sendHttpGetRequest(endPoint, sortedMap, APIConfig.DEFAULT_HEADER);
+        } else {
+            if (file != null) {
+                response = sendHttpUploadRequest(endPoint, file, sortedMap, APIConfig.DEFAULT_HEADER);
+            } else {
+                response = sendHttpPostRequestWithBody(endPoint, sortedMap, (String) body, APIConfig.DEFAULT_HEADER);
             }
         }
         JsonObject result = null;

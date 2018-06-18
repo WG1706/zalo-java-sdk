@@ -134,11 +134,58 @@ public class ZaloBaseClient {
         }
     }
 
+    protected String sendHttpPostRequestWithBody(String enpointUrl, Map<String, String> params, String body, Map<String, String> header) throws APIException {
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        try {
+            try {
+                StringBuilder query = new StringBuilder();
+                for (Map.Entry<String, String> entrySet : params.entrySet()) {
+                    String key = entrySet.getKey();
+                    String value = entrySet.getValue();
+                    query.append(key).append("=").append(value).append("&");
+                }
+                enpointUrl += "?" + query.toString();
+                HttpPost httpPost = new HttpPost(enpointUrl);
+                if (isUseProxy) {
+                    httpPost.setConfig(config);
+                }
+                if (header != null) {
+                    for (Map.Entry<String, String> entry : header.entrySet()) {
+                        httpPost.addHeader(entry.getKey(), entry.getValue());
+                    }
+                }
+                httpPost.setHeader("Content-Type", "application/json");
+                StringEntity stringEntity = new StringEntity(body, "UTF-8");
+                httpPost.setEntity(stringEntity);
+                CloseableHttpResponse response = httpclient.execute(httpPost);
+                try {
+                    HttpEntity entity = response.getEntity();
+                    return EntityUtils.toString(entity);
+                } finally {
+                    response.close();
+                }
+            } catch (IOException ex) {
+                throw new APIException(ex);
+            } finally {
+                httpclient.close();
+            }
+        } catch (APIException | IOException | ParseException ex) {
+            throw new APIException(ex);
+        }
+    }
+
     protected String sendHttpUploadRequest(String enpointUrl, File file, Map<String, String> params, Map<String, String> header) throws APIException {
         CloseableHttpClient httpclient = HttpClients.createDefault();
         try {
             try {
                 CloseableHttpClient httpClient = HttpClients.createDefault();
+                StringBuilder query = new StringBuilder();
+                for (Map.Entry<String, String> entrySet : params.entrySet()) {
+                    String key = entrySet.getKey();
+                    String value = entrySet.getValue();
+                    query.append(key).append("=").append(value).append("&");
+                }
+                enpointUrl += "?" + query.toString();
                 HttpPost uploadFile = new HttpPost(enpointUrl);
                 if (isUseProxy) {
                     uploadFile.setConfig(config);
@@ -149,9 +196,6 @@ public class ZaloBaseClient {
                     }
                 }
                 MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-                for (Map.Entry<String, String> entry : params.entrySet()) {
-                    builder.addTextBody(entry.getKey(), entry.getValue(), ContentType.TEXT_PLAIN);
-                }
                 // This attaches the file to the POST:
                 builder.addBinaryBody(
                         "file",
