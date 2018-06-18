@@ -41,10 +41,9 @@ public class TestAPICategory {
         Map<String, Object> params = new HashMap<>();
         params.put("access_token", accessToken);
         String endpoint = API_DOMAIN + "/store/v2.0/category/getcategoryofoa";
-        JsonObject data = new JsonObject();
-        data.addProperty("offset", 0);
-        data.addProperty("limit", 10);
-        JsonObject excuteRequest = oaClient.excuteRequest(endpoint, "GET", params, data.toString());
+        params.put("offset", 0);
+        params.put("limit", 10);
+        JsonObject excuteRequest = oaClient.excuteRequest(endpoint, "GET", params, null);
         return excuteRequest;
     }
 
@@ -53,7 +52,6 @@ public class TestAPICategory {
         params.put("access_token", accessToken);
         String endpoint = API_DOMAIN + "/store/v2.0/category/create";
         String strData = "{\n"
-                + "        \"id\": \"384eb7a98aec63b23afd\",\n"
                 + "        \"name\": \"Ahihi\",\n"
                 + "        \"photo\": \"9cafc928d96d3033697c\",\n"
                 + "        \"description\": \"▽✓  ✔  ☑  ✅  ✕  ✖  ✗  ✘\",\n"
